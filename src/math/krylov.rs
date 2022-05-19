@@ -218,51 +218,37 @@ pub fn gmres_given(
     
     
     // Beginning of the construction of the Krylov basis 
-    for j in (0..max_iter).into_iter(){
+    for it in (0..max_iter).into_iter(){
         
+        let k = it ;
         // First estimation of the kth basis vector 
-        vk_estimate = jacobian_vec_estimate(&vk[j], &u, func);
+        vk_estimate = jacobian_vec_estimate(&vk[k], &u, func);
 
         //-------- Othogonalisation of the estimated basis vector-------------
         
         // For each existing basis vectors 
-        vk.iter().enumerate().for_each(|(j,vec)| {
+        for j in (0..k).into_iter() {
 
-            print!("{}\n\n",j);
             // compute the dot product vk[j] 
-            let product = dot_product(vec, &vk_estimate);
+            hessian[j][k] = dot_product(&vk[j], &vk_estimate);
+            // do the orthogonalisation
             
+            vk_estimate = vk_estimate.iter().enumerate()
+                .map(|(i,vec)| vec - hessian[j][k] * vk[j][i] )
+                .collect();
 
-            // orthogonalize the estimated new basis vector 
-            vk_estimate =  vk_estimate.iter().enumerate().map(|(i,vec)| vec - product * vk[j][i]).collect();
+        };
 
-        });
-
-        // add the new column to the hessian matrix 
-        hessian.push(new_hess_column);
-
-        // Add a new row to the hessian matrix 
-        hessian.iter_mut().for_each(|column| {
-            column.push(0.0)
-        });
-
-        // get hessian matrix size 
-        let dim1 = hessian.len() - 1;
-        let dim2  = hessian[0].len() - 1;
-
-        print!("Iterator: {} / dmi1: / {} / dim2: {}\n\n ", iterator, dim1,dim2);
         
         // update the last element of the matrix 
-        hessian[dim1][dim2] = l2_norm(&vk_estimate);
+        hessian[k+1][k] = l2_norm(&vk_estimate);
         
 
         // Check for stopping conditions, detailed in the original article
-        if hessian[dim1][dim2] != 0.0 && iterator < max_iter {
+        if hessian[k+1][k] != 0.0 && iterator < max_iter {
             
             // The new basis vector is the estimate normalized 
-            vk.push(
-                vk_estimate.iter().map(|estimate| estimate/hessian[dim1][dim2]).collect()
-            );
+            vk[k+1] = vk_estimate.iter().map(|vec| vec/hessian[k+1][k]).collect();
             
         } else {
             // If the  stopping condition is met, stop loop and regress iterator by one
@@ -271,7 +257,7 @@ pub fn gmres_given(
         }
 
         // Check for convergence condition 
-        if hessian[dim1][dim2].abs() < tol { break } ;
+        if hessian[k+1][k].abs() < tol { break } ;
 
         // Beginning of the given rotation of the hessian matrix 
         
