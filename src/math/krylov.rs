@@ -239,7 +239,6 @@ pub fn gmres_given(
 
         };
 
-        
         // update the last element of the matrix 
         hessian[k+1][k] = l2_norm(&vk_estimate);
         
@@ -261,8 +260,37 @@ pub fn gmres_given(
 
         // Beginning of the given rotation of the hessian matrix 
         
-        iterator += 1 ;
+        // We first apply k Given rotation on the new basis vector we computed
+
+        for i in (0..k-1).into_iter() {
+
+            // Since we need the value of hessian[i][k] to compute the value of
+            // the QR of hessian[i+1][k], we store its QR in a temporary variable
+
+            let tmp_qr = cn[i] * hessian[i][k] + sn[i] * hessian[k+1][k];
+            hessian[i+1][k] = - sn[i] * hessian[i][k] + cn[i] * hessian[i+1][k];
+            hessian[i][k] = tmp_qr
+
+        };
+
+        // Computation of the k+1 th Given Rotation, also using a temporary variable 
+        // storing the given rotation. 
+        
+        let tmp_qr = ( hessian[k][k].powi(2) + hessian[k+1][k].powi(2) ).sqrt();
+        cn[k] = hessian[k][k]/tmp_qr ;
+        sn [k] = hessian[k+1][k] / tmp_qr;
+        
+        // Do the k+1 th Given Rotation transforming the Hessenberg Matrix into
+        // pure upper Triangular matrix (easy to invert) 
+
+        hessian[k+1][k] = 0f64 ;
+
+        // We apply the same given rotation to norm_func to stay in the same basis
+        norm_func[k+1] = - sn[k] * norm_func[k];
+        norm_func[k] = cn[k] * norm_func[k];
     }; 
+
+    
 
     initial_fu
     
