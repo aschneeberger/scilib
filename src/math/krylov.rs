@@ -24,6 +24,11 @@ pub fn test_func(v : &Vec<f64>) -> Vec<f64> {
     res_vec
 }
 
+pub fn matrix_slice(matrix: Vec<Vec<f64>> ,imin:usize, imax:usize,jmin:usize,jmax:usize ) -> Vec<Vec<f64>> {
+
+    matrix
+}
+
 /// # L2 Norm 
 /// 
 ///  Compute L2 norm of a N dim vector, computed as 
@@ -144,13 +149,16 @@ pub fn jacobian_vec_estimate(
 ///  $$ x_n = \frac{b_n}{U_{nn}} $$
 ///  $$ x_i =  \frac{b_i - \sum_{j=i+1}^n  U_{ij} x_j}{U_{ii}} $$
 ///   The algorithm can be found here <https://algowiki-project.org/en/Backward_substitution>
-pub fn back_substitution(u: &Vec<Vec<f64>>,b:&Vec<f64>) -> Vec<f64> {
+pub fn back_substitution(u: &[Vec<f64>],b:&[f64]) -> Vec<f64> {
 
     // Size of the vector 
     let n = b.len();
 
+    println!("{:#?}",u);
+    println!("matrix size {}", u[0].len());
+    
     // Solution wich will be computed 
-    let mut solution  = b.clone();
+    let mut solution  = Vec::from(b.clone());
 
     // Initialize the loop 
     solution[n-1] = b[n-1]/u[n-1][n-1];
@@ -198,8 +206,6 @@ pub fn gmres_given(
     let mut residual : Vec<f64> = Vec::new() ;                                   // Residue vector 
     let mut residual_norm : f64  ;                                               // Norm of the residue 
 
-    let mut iterator : usize = 0 ;                                               // Algorithm iterator
-
     // Evaluation of func(u)
     initial_fu = func(&u) ;
     
@@ -216,11 +222,12 @@ pub fn gmres_given(
     // Store the first residual norm
     norm_func[0] = residual_norm; 
     
+    let mut  k : usize = 0 ;
     
     // Beginning of the construction of the Krylov basis 
-    for it in (0..max_iter).into_iter(){
+    for iterator in (0..max_iter-1).into_iter(){
         
-        let k = it ;
+        k = iterator ;
         // First estimation of the kth basis vector 
         vk_estimate = jacobian_vec_estimate(&vk[k], &u, func);
 
@@ -244,14 +251,14 @@ pub fn gmres_given(
         
 
         // Check for stopping conditions, detailed in the original article
-        if hessian[k+1][k] != 0.0 && iterator < max_iter {
+        if hessian[k+1][k] != 0.0 {
             
             // The new basis vector is the estimate normalized 
             vk[k+1] = vk_estimate.iter().map(|vec| vec/hessian[k+1][k]).collect();
             
         } else {
             // If the  stopping condition is met, stop loop and regress iterator by one
-            iterator = iterator - 1;
+            k = k - 1;
             break;
         }
 
@@ -262,7 +269,7 @@ pub fn gmres_given(
         
         // We first apply k Given rotation on the new basis vector we computed
 
-        for i in (0..k-1).into_iter() {
+        for i in (0..k).into_iter() {
 
             // Since we need the value of hessian[i][k] to compute the value of
             // the QR of hessian[i+1][k], we store its QR in a temporary variable
@@ -288,12 +295,13 @@ pub fn gmres_given(
         // We apply the same given rotation to norm_func to stay in the same basis
         norm_func[k+1] = - sn[k] * norm_func[k];
         norm_func[k] = cn[k] * norm_func[k];
-    }; 
+    };  
 
-    
+    // Now we go back to the real space 
 
-    initial_fu
-    
+    let lambda = back_substitution(&hessian[0..k-1][0..k-1],&norm_func[0..k-1]) ;
+
+    lambda
 
 
 }
