@@ -299,7 +299,9 @@ pub fn gmres_given(
 
     // Now we go back to the real space 
 
-    let lambda = back_substitution(&hessian[0..k-1][0..k-1],&norm_func[0..k-1]) ;
+    let lambda = back_substitution(&hessian[0..k][0..k],&norm_func[0..k]) ;
+
+    
 
     lambda
 
